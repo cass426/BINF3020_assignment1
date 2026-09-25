@@ -1,3 +1,9 @@
+@dataclass
+class Cell:
+    score: float
+    xp: Optional[int] = None
+    yp: Optional[int] = None
+
 def global_alignment(seq1, seq2, scoring_function):
     """Global sequence alignment using the Needleman–Wunsch algorithm.
 
@@ -26,9 +32,53 @@ def global_alignment(seq1, seq2, scoring_function):
     ('-ab-racadabra', 'dabarakada-ra', 5.0)
 
     Other alignments are not possible.
-
     """
-    raise NotImplementedError()
+    len1 = len(seq1)
+    len2 = len(seq2)
+
+    alignment_matrix = [[Cell(0) for x in range(0, len2 + 1)] for y in range(0, len1 + 1)]
+
+    for i in range(1, len1 + 1):
+        alignment_matrix[i][0] = Cell(score=i * scoring_function(seq1[i-1], '-'), xp=i-1, yp=0)
+
+    for j in range(1, len2 + 1):
+        alignment_matrix[0][j] = Cell(score=j * scoring_function('-', seq2[j-1]), xp=0, yp=j-1)
+    
+    # doing the scoring bit
+    for k in range(1, len1 + 1):
+        for l in range(1, len2 + 1):
+            diagonal = (alignment_matrix[k-1][l-1].score + scoring_function(seq1[k-1], seq2[l-1]), k-1, l-1)
+            up = (alignment_matrix[k-1][l].score + scoring_function(seq1[k-1], '-'), k-1, l)
+            left = (alignment_matrix[k][l-1].score + scoring_function('-', seq2[l-1]), k, l-1)
+
+            best = max(diagonal, up, left, key=lambda c: c[0])
+
+            alignment_matrix[k][l] = Cell(score=best[0], xp=best[1], yp=best[2])
+    
+    # reconstruction
+    reconstructed_seq1 = ""
+    reconstructed_seq2 = ""
+    i = len1
+    j = len2
+    while (i > 0 or j > 0):
+        i_pointer = alignment_matrix[i][j].xp
+        j_pointer = alignment_matrix[i][j].yp
+        if i_pointer == i:
+            reconstructed_seq1 += '-'
+            reconstructed_seq2 += seq2[j-1]
+            j = j_pointer
+            
+        elif j_pointer == j:
+            reconstructed_seq1 += seq1[i-1]
+            reconstructed_seq2 += '-'
+            i = i_pointer
+        else:
+            reconstructed_seq1 += seq1[i-1]
+            reconstructed_seq2 += seq2[j-1]
+            i = i_pointer
+            j = j_pointer
+
+    return reconstructed_seq1[::-1], reconstructed_seq2[::-1], alignment_matrix[len1][len2].score
 
 
 def local_alignment(seq1, seq2, scoring_function):
@@ -68,3 +118,8 @@ def local_alignment(seq1, seq2, scoring_function):
 def scoring_function_simple(aa_i,aa_j):
     score = [-1, 1][aa_i == aa_j]
     return (score)
+
+def blosum62_scoring(x, y):
+    if x == '-' or y == '-':
+        return 8
+    return blosum62[x, y]
