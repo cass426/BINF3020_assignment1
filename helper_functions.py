@@ -111,7 +111,52 @@ def local_alignment(seq1, seq2, scoring_function):
     Other alignments are not possible.
 
     """
-    raise NotImplementedError()
+    len1 = len(seq1)
+    len2 = len(seq2)
+
+    alignment_matrix = [[Cell(0) for x in range(0, len2 + 1)] for y in range(0, len1 + 1)]
+
+    # doing the scoring bit
+    for k in range(1, len1 + 1):
+        for l in range(1, len2 + 1):
+            diagonal = (alignment_matrix[k-1][l-1].score + scoring_function(seq1[k-1], seq2[l-1]), k-1, l-1)
+            up = (alignment_matrix[k-1][l].score + scoring_function(seq1[k-1], '-'), k-1, l)
+            left = (alignment_matrix[k][l-1].score + scoring_function('-', seq2[l-1]), k, l-1)
+            restart = (0, None, None)
+
+            best = max(diagonal, up, left, restart, key=lambda c: c[0])
+
+            alignment_matrix[k][l] = Cell(score=best[0], xp=best[1], yp=best[2])
+    
+    # reconstruction
+    best_score = 0
+    best_i, best_j = 0, 0
+
+    if alignment_matrix[k][l].score > best_score:
+        best_score = alignment_matrix[k][l].score
+        best_i, best_j = k, l
+    
+    reconstructed_seq1 = ""
+    reconstructed_seq2 = ""
+    i, j = best_i, best_j
+
+    while alignment_matrix[i][j].xp is not None:
+        i_pointer = alignment_matrix[i][j].xp
+        j_pointer = alignment_matrix[i][j].yp
+
+        if i_pointer == i:
+            reconstructed_seq1 += '-'
+            reconstructed_seq2 += seq2[j-1]
+        elif j_pointer == j:
+            reconstructed_seq1 += seq1[i-1]
+            reconstructed_seq2 += '-'
+        else:
+            reconstructed_seq1 += seq1[i-1]
+            reconstructed_seq2 += seq2[j-1]
+
+        i, j = i_pointer, j_pointer
+
+    return reconstructed_seq1[::-1], reconstructed_seq2[::-1], best_score
 
 
 ## This is an example scoring function, you should implement a version which uses a scoring matrix 
